@@ -43,10 +43,20 @@ export default function Home() {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
+    let active = true;
+    async function syncState() {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) throw new Error("No se pudo conectar con la base de datos.");
+        const remote = await response.json() as { lists: Lists; occupiedBy: string | null };
+        if (active) { setLists(remote.lists); setOccupiedBy(remote.occupiedBy); }
+      } catch (error) { if (active) setNotice(error instanceof Error ? error.message : "Backend no disponible."); }
+    }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    syncState();
+    const interval = window.setInterval(syncState, 1000);
+    return () => { active = false; window.clearInterval(interval); };
   }, []);
-  useEffect(() => { window.localStorage.setItem("casaweb-lists", JSON.stringify(lists)); }, [lists]);
-  useEffect(() => { window.localStorage.setItem("casaweb-occupied", JSON.stringify(occupiedBy)); }, [occupiedBy]);
 
   const pending = useMemo(() => Object.values(lists).flat().filter((item) => !item.done).length, [lists]);
 
@@ -60,22 +70,42 @@ export default function Home() {
   function addItem(userId: string) {
     const text = drafts[userId]?.trim();
     if (!text) return;
-    setLists((value) => ({ ...value, [userId]: [...value[userId], { id: Date.now(), text, done: false }] }));
+    const item = { id: Math.max(0, ...Object.values(lists).flat().map((entry) => entry.id)) + 1, text, done: false };
+    setLists((value) => ({ ...value, [userId]: [...value[userId], item] }));
     setDrafts((value) => ({ ...value, [userId]: "" }));
+    void saveRemote({ lists: { ...lists, [userId]: [...lists[userId], item] } });
   }
   function toggleItem(userId: string, id: number) {
     setLists((value) => ({ ...value, [userId]: value[userId].map((item) => item.id === id ? { ...item, done: !item.done } : item) }));
+    const nextLists = { ...lists, [userId]: lists[userId].map((item) => item.id === id ? { ...item, done: !item.done } : item) };
+    void saveRemote({ lists: nextLists });
+  }
+  async function saveRemote(payload: { lists?: Lists; occupiedBy?: string | null; message?: { title: string; body: string } }) {
+    if (!current) return;
+    const response = await fetch("/api/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: current.id, ...payload }) });
+    if (!response.ok) setNotice("No se pudo guardar el cambio en el servidor.");
+  }
+  function base64ToBytes(value: string) {
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(window.atob(base64), (character) => character.charCodeAt(0));
   }
   async function allowNotifications() {
     if (!("Notification" in window)) { setPermission("unsupported"); return; }
     const result = await Notification.requestPermission();
-    setPermission(result); setNotice(result === "granted" ? "Avisos activados en este dispositivo." : "Los avisos siguen desactivados.");
+    if (result !== "granted") { setPermission(result); setNotice("Los avisos siguen desactivados."); return; }
+    const registration = await navigator.serviceWorker.ready;
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicKey) { setNotice("Falta configurar la clave VAPID pública en Vercel."); return; }
+    const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) });
+    await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: current?.id, subscription }) });
+    setPermission(result); setNotice("Avisos activados en este dispositivo.");
   }
   function toggleHouse() {
     if (!current) return;
     const next = occupiedBy === current.id ? null : current.id;
     setOccupiedBy(next); setNotice(next ? "Aviso enviado al grupo." : "La casa vuelve a estar disponible.");
-    if (next && permission === "granted") new Notification(`${current.name} necesita la casa`, { body: "Revisa Casa Común para ver el aviso." });
+    void saveRemote({ occupiedBy: next, message: next ? { title: `${current.name} necesita la casa`, body: "Revisa Casa Común para ver el aviso." } : undefined });
   }
 
   if (!current) return <main className="login-shell"><section className="login-copy"><p className="eyebrow">CASA COMÚN / 03</p><h1>La casa,<br /><em>en sintonía.</em></h1><p className="intro">Un lugar pequeño para coordinar lo cotidiano sin llenar el chat de mensajes.</p><p className="login-note">● Espacio privado para tres personas</p></section><section className="login-panel"><div className="brand-mark">CC</div><p className="eyebrow">ENTRAR AL ESPACIO</p><h2>Qué bueno verte.</h2><form onSubmit={login} className="login-form"><label>Usuario<input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="carlos" /></label><label>Contraseña<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Casa123" /></label>{error && <p className="form-error">{error}</p>}<button className="primary-button">Entrar a Casa Común <span>↗</span></button></form><p className="demo-hint">Demo: carlos, jorge o luis / contraseña: Casa123</p></section></main>;

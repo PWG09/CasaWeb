@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Casa Comun
 
-## Getting Started
+App Next.js para coordinar una casa entre Carlos W, Jorge A y Luis M.
 
-First, run the development server:
+## Desarrollo
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Cuentas demo:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `carlos` / `Casa123`
+- `jorge` / `Casa123`
+- `luis` / `Casa123`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Sincronizacion y notificaciones
 
-## Learn More
+La app usa Supabase para compartir las listas y el estado de la casa. Ejecuta `supabase/schema.sql` en el SQL Editor de tu proyecto Supabase.
 
-To learn more about Next.js, take a look at the following resources:
+Configura estas variables en Vercel y en `.env.local`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:tu-correo@example.com
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Genera las claves con:
 
-## Deploy on Vercel
+```bash
+npx web-push generate-vapid-keys
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+La clave privada debe permanecer solo en Vercel. En iPhone/iPad, el usuario debe agregar la web a la pantalla de inicio antes de activar notificaciones. El cliente consulta el estado cada segundo y las rutas `/api/state` y `/api/push` gestionan la persistencia y los avisos.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Validacion
+
+```bash
+npm run lint
+npm run build
+```
