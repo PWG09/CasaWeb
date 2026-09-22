@@ -20,3 +20,6 @@ insert into public.house_state (id, lists, "occupiedBy") values (
 
 alter table public.house_state enable row level security;
 alter table public.push_subscriptions enable row level security;
+
+grant select, insert, update, delete on table public.house_state to service_role;
+grant select, insert, update, delete on table public.push_subscriptions to service_role;
