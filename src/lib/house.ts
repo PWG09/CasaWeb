@@ -23,7 +23,7 @@ export const initialState: HouseState = {
   updatedAt: new Date(0).toISOString(),
 };
 
-const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function requireConfig() {

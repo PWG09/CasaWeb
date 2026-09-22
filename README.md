@@ -29,6 +29,8 @@ VAPID_PRIVATE_KEY=...
 VAPID_SUBJECT=mailto:tu-correo@example.com
 ```
 
+Tambien se acepta `NEXT_PUBLIC_SUPABASE_URL` como nombre alternativo para la URL. No uses la publishable key como `SUPABASE_SERVICE_ROLE_KEY`: son credenciales distintas.
+
 Genera las claves con:
 
 ```bash
