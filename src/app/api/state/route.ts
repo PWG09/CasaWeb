@@ -10,7 +10,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { userId?: UserId; lists?: Record<UserId, { id: number; text: string; done: boolean }[]>; occupiedBy?: UserId | null; message?: { title: string; body: string } };
+    const body = await request.json() as { userId?: UserId; lists?: Record<UserId, { id: number; text: string; done: boolean; completedAt?: string }[]>; occupiedBy?: UserId | null; message?: { title: string; body: string } };
     if (!body.userId || !["carlos", "jorge", "luis"].includes(body.userId)) return NextResponse.json({ error: "Usuario inválido." }, { status: 400 });
     const current = await getState();
     const state = await saveState({ id: "main-home", lists: body.lists ?? current.lists, occupiedBy: body.occupiedBy === undefined ? current.occupiedBy : body.occupiedBy, updatedAt: new Date().toISOString() });

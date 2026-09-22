@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type User = { id: string; name: string; initials: string; color: string };
-type Item = { id: number; text: string; done: boolean };
+type Item = { id: number; text: string; done: boolean; completedAt?: string };
 type Lists = Record<string, Item[]>;
 
 const users: User[] = [
@@ -76,8 +76,9 @@ export default function Home() {
     void saveRemote({ lists: { ...lists, [userId]: [...lists[userId], item] } });
   }
   function toggleItem(userId: string, id: number) {
-    setLists((value) => ({ ...value, [userId]: value[userId].map((item) => item.id === id ? { ...item, done: !item.done } : item) }));
-    const nextLists = { ...lists, [userId]: lists[userId].map((item) => item.id === id ? { ...item, done: !item.done } : item) };
+    const completedAt = new Date().toISOString();
+    const nextLists = { ...lists, [userId]: lists[userId].map((item) => item.id === id ? { ...item, done: !item.done, completedAt: item.done ? undefined : completedAt } : item) };
+    setLists(nextLists);
     void saveRemote({ lists: nextLists });
   }
   async function saveRemote(payload: { lists?: Lists; occupiedBy?: string | null; message?: { title: string; body: string } }) {

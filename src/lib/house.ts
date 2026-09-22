@@ -1,7 +1,7 @@
 import webpush from "web-push";
 
 export type UserId = "carlos" | "jorge" | "luis";
-export type Item = { id: number; text: string; done: boolean };
+export type Item = { id: number; text: string; done: boolean; completedAt?: string };
 export type Lists = Record<UserId, Item[]>;
 export type HouseState = { id: string; lists: Lists; occupiedBy: UserId | null; updatedAt: string };
 export type BrowserPushSubscription = { endpoint: string; keys: { p256dh: string; auth: string } };
@@ -45,7 +45,20 @@ async function supabase<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getState(): Promise<HouseState> {
   const rows = await supabase<HouseState[]>("house_state?id=eq.main-home&select=*");
-  return rows[0] ?? initialState;
+  const state = rows[0] ?? initialState;
+  const now = Date.now();
+  let changed = false;
+  const lists = Object.fromEntries(Object.entries(state.lists).map(([userId, items]) => {
+    const nextItems = items.flatMap((item) => {
+      if (!item.done) return [item];
+      if (!item.completedAt) { changed = true; return [{ ...item, completedAt: new Date(now).toISOString() }]; }
+      if (now - new Date(item.completedAt).getTime() >= 24 * 60 * 60 * 1000) { changed = true; return []; }
+      return [item];
+    });
+    return [userId, nextItems];
+  })) as Lists;
+  const cleaned = { ...state, lists };
+  return changed ? saveState({ ...cleaned, updatedAt: new Date(now).toISOString() }) : cleaned;
 }
 
 export async function saveState(state: HouseState): Promise<HouseState> {
